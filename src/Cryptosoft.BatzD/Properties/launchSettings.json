@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "Cryptsoft.BatzD": {
+      "commandName": "Project"
+    },
+    "Cryptsoft.BatzD Test": {
+      "commandName": "Project",
+      "commandLineArgs": "-testnet -checkpoints=0 -assumevalid=0"
+    }
+  }
+}

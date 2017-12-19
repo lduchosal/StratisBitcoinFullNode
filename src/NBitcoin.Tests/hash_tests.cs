@@ -153,5 +153,30 @@ namespace NBitcoin.Tests
         {
             Assert.Equal(Hashes.MurmurHash3(seed, Encoders.Hex.DecodeData(data)), expected);
         }
+
+
+
+        [Fact]
+        [Trait("UnitTest", "UnitTest")]
+        public void minhash256()
+        {
+            var genesis = Network.BatzMain.GetGenesis();
+            uint256 min = uint256.Parse("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff") ;
+
+            for (var nonce = 0; nonce <Int32.MaxValue; nonce++)
+            {
+                genesis.Header.Nonce = (uint)nonce;
+                var hash = genesis.GetHash();
+                if (hash < min)
+                {
+                    Console.WriteLine("Better hash found nonce : {0}, hash : {1}", nonce, hash);
+                    min = hash;
+                }
+
+            }
+            Assert.Equal("706ea1768da7f0c489bf931b362c2d26d8cbd2ec", min.ToString());
+
+        }
+
     }
 }

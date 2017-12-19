@@ -38,6 +38,10 @@ namespace NBitcoin
 
         public static Network StratisRegTest => Network.GetNetwork("StratisRegTest") ?? InitStratisRegTest();
 
+        public static Network BatzMain => Network.GetNetwork("BatzMain") ?? InitBatzMain();
+
+        public static Network BatzTest => Network.GetNetwork("BatzTest") ?? InitBatzTest();
+
         private static Network InitMain()
         {
             Network network = new Network();
@@ -477,6 +481,192 @@ namespace NBitcoin
             return builder.BuildAndRegister();
         }
 
+        private static Network InitBatzMain()
+        {
+            Network network = new Network();
+
+            network.Name = "BatzMain";
+
+            Consensus consensus = network.consensus;
+
+            consensus.SubsidyHalvingInterval = 210000;
+            consensus.MajorityEnforceBlockUpgrade = 750;
+            consensus.MajorityRejectBlockOutdated = 950;
+            consensus.MajorityWindow = 1000;
+            consensus.BuriedDeployments[BuriedDeployments.BIP34] = 1;
+            consensus.BuriedDeployments[BuriedDeployments.BIP65] = 1;
+            consensus.BuriedDeployments[BuriedDeployments.BIP66] = 1;
+            consensus.BIP34Hash = new uint256("0x000000002ec8763a9ed4598a60b187174f41b8cb0eedeab324c83c76823624d0");
+            consensus.PowLimit = new Target(new uint256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+            consensus.MinimumChainWork = new uint256("0x0000000000000000000000000000000000000000000000000000000000000001");
+            consensus.PowTargetTimespan = TimeSpan.FromSeconds(14 * 24 * 60 * 60); // two weeks
+            consensus.PowTargetSpacing = TimeSpan.FromSeconds(10 * 60);
+            consensus.PowAllowMinDifficultyBlocks = false;
+            consensus.PowNoRetargeting = false;
+            consensus.RuleChangeActivationThreshold = 1916; // 95% of 2016
+            consensus.MinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+
+            consensus.BIP9Deployments[BIP9Deployments.TestDummy] = new BIP9DeploymentsParameters(28, 1199145601, 1230767999);
+            consensus.BIP9Deployments[BIP9Deployments.CSV] = new BIP9DeploymentsParameters(0, 1462060800, 1493596800);
+            consensus.BIP9Deployments[BIP9Deployments.Segwit] = new BIP9DeploymentsParameters(1, 0, 0);
+
+            consensus.CoinType = 0;
+
+            consensus.DefaultAssumeValid = new uint256("0x0000000000000000000000000000000000000000000000000000000000000001"); // 477890
+
+            // The message start string is designed to be unlikely to occur in normal data.
+            // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+            // a large 4-byte int at any alignment.
+            network.magic = 0xDE5BF271;
+
+
+            network.alertPubKeyArray = Encoders.Hex.DecodeData("03f942bd5096bd348dde953344b1f620d3133bdd2abc467dde7da18c02a1e244c5");
+            network.DefaultPort = 18111;
+            network.RPCPort = 18112;
+
+            network.genesis = CreateBatzGenesisBlock(1513243304, 321603939, 0x1d00ffff, 1, Money.Coins(50m));
+            consensus.HashGenesisBlock = network.genesis.GetHash();
+            
+            Assert(consensus.HashGenesisBlock == uint256.Parse("0x000000002ec8763a9ed4598a60b187174f41b8cb0eedeab324c83c76823624d0"));
+            Assert(network.genesis.Header.HashMerkleRoot == uint256.Parse("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+
+            network.seeds.Add(new DNSSeedData("batz.cryptosoft.ch", "batz.cryptosoft.ch")); // 
+            network.seeds.Add(new DNSSeedData("batz.2113.ch", "batz.2113.ch")); // 
+            network.seeds.Add(new DNSSeedData("batz.arcantel.ch", "batz.arcantel.ch")); // 
+            network.base58Prefixes[(int)Base58Type.PUBKEY_ADDRESS] = new byte[] { (0) };
+            network.base58Prefixes[(int)Base58Type.SCRIPT_ADDRESS] = new byte[] { (5) };
+            network.base58Prefixes[(int)Base58Type.SECRET_KEY] = new byte[] { (128) };
+            network.base58Prefixes[(int)Base58Type.ENCRYPTED_SECRET_KEY_NO_EC] = new byte[] { 0x01, 0x42 };
+            network.base58Prefixes[(int)Base58Type.ENCRYPTED_SECRET_KEY_EC] = new byte[] { 0x01, 0x43 };
+            network.base58Prefixes[(int)Base58Type.EXT_PUBLIC_KEY] = new byte[] { (0x04), (0x88), (0xB2), (0x1E) };
+            network.base58Prefixes[(int)Base58Type.EXT_SECRET_KEY] = new byte[] { (0x04), (0x88), (0xAD), (0xE4) };
+            network.base58Prefixes[(int)Base58Type.PASSPHRASE_CODE] = new byte[] { 0x2C, 0xE9, 0xB3, 0xE1, 0xFF, 0x39, 0xE2 };
+            network.base58Prefixes[(int)Base58Type.CONFIRMATION_CODE] = new byte[] { 0x64, 0x3B, 0xF6, 0xA8, 0x9A };
+            network.base58Prefixes[(int)Base58Type.STEALTH_ADDRESS] = new byte[] { 0x2a };
+            network.base58Prefixes[(int)Base58Type.ASSET_ID] = new byte[] { 23 };
+            network.base58Prefixes[(int)Base58Type.COLORED_ADDRESS] = new byte[] { 0x13 };
+
+            var encoder = new Bech32Encoder("bc");
+            network.bech32Encoders[(int)Bech32Type.WITNESS_PUBKEY_ADDRESS] = encoder;
+            network.bech32Encoders[(int)Bech32Type.WITNESS_SCRIPT_ADDRESS] = encoder;
+
+            // Convert the pnSeeds array into usable address objects.
+            string[] pnSeed = new[] { "80.83.47.152:18111", "80.83.47.152:18111", "80.83.47.152:18111" };
+
+            Random rand = new Random();
+            TimeSpan nOneWeek = TimeSpan.FromDays(7);
+            for (int i = 0; i < pnSeed.Length; i++)
+            {
+                // It'll only connect to one or two seed nodes because once it connects,
+                // it'll get a pile of addresses with newer timestamps.                
+                NetworkAddress addr = new NetworkAddress();
+                // Seed nodes are given a random 'last seen time' of between one and two
+                // weeks ago.
+                addr.Time = DateTime.UtcNow - (TimeSpan.FromSeconds(rand.NextDouble() * nOneWeek.TotalSeconds)) - nOneWeek;
+                addr.Endpoint = Utils.ParseIpEndpoint(pnSeed[i], network.DefaultPort);
+                network.fixedSeeds.Add(addr);
+            }
+            network.MinTxFee = 1000;
+            network.FallbackFee = 20000;
+            network.MinRelayTxFee = 1000;
+
+            NetworksContainer.TryAdd(network.Name.ToLowerInvariant(), network);
+
+            return network;
+        }
+
+        private static Network InitBatzTest()
+        {
+            Network network = new Network();
+
+            network.Name = "BatzTest";
+
+            Consensus consensus = network.consensus;
+
+            consensus.SubsidyHalvingInterval = 210000;
+            consensus.MajorityEnforceBlockUpgrade = 750;
+            consensus.MajorityRejectBlockOutdated = 950;
+            consensus.MajorityWindow = 1000;
+            consensus.BuriedDeployments[BuriedDeployments.BIP34] = 1;
+            consensus.BuriedDeployments[BuriedDeployments.BIP65] = 1;
+            consensus.BuriedDeployments[BuriedDeployments.BIP66] = 1;
+            consensus.BIP34Hash = new uint256("0x0000000000000000000000000000000000000000000000000000000000B1434");
+            consensus.PowLimit = new Target(new uint256("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+            consensus.MinimumChainWork = new uint256("0x0000000000000000000000000000000000000000000000000000000000000001");
+            consensus.PowTargetTimespan = TimeSpan.FromSeconds(14 * 24 * 60 * 60); // two weeks
+            consensus.PowTargetSpacing = TimeSpan.FromSeconds(10 * 60);
+            consensus.PowAllowMinDifficultyBlocks = false;
+            consensus.PowNoRetargeting = false;
+            consensus.RuleChangeActivationThreshold = 1916; // 95% of 2016
+            consensus.MinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+
+            consensus.BIP9Deployments[BIP9Deployments.TestDummy] = new BIP9DeploymentsParameters(28, 1199145601, 1230767999);
+            consensus.BIP9Deployments[BIP9Deployments.CSV] = new BIP9DeploymentsParameters(0, 1462060800, 1493596800);
+            consensus.BIP9Deployments[BIP9Deployments.Segwit] = new BIP9DeploymentsParameters(1, 0, 0);
+
+            consensus.CoinType = 0;
+
+            consensus.DefaultAssumeValid = new uint256("0x0000000000000000000000000000000000000000000000000000000000011111"); // 477890
+
+            // The message start string is designed to be unlikely to occur in normal data.
+            // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
+            // a large 4-byte int at any alignment.
+            network.magic = 0xDE5BF277;
+
+            network.alertPubKeyArray = Encoders.Hex.DecodeData("03f942bd5096bd348dde953344b1f620d3133bdd2abc467dde7da18c02a1e244c5");
+            network.DefaultPort = 18222;
+            network.RPCPort = 18223;
+
+            network.genesis = CreateBatzGenesisBlock(1513243304, 2083236893, 0x1d00ffff, 1, Money.Coins(50m));
+            consensus.HashGenesisBlock = network.genesis.GetHash();
+            Assert(consensus.HashGenesisBlock == uint256.Parse("0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
+            Assert(network.genesis.Header.HashMerkleRoot == uint256.Parse("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
+            network.seeds.Add(new DNSSeedData("batz.cryptosoft.ch", "batz.cryptosoft.ch")); // 
+            network.seeds.Add(new DNSSeedData("batz.2113.ch", "batz.2113.ch")); // 
+            network.seeds.Add(new DNSSeedData("batz.arcantel.ch", "batz.arcantel.ch")); // 
+            network.base58Prefixes[(int)Base58Type.PUBKEY_ADDRESS] = new byte[] { (0) };
+            network.base58Prefixes[(int)Base58Type.SCRIPT_ADDRESS] = new byte[] { (5) };
+            network.base58Prefixes[(int)Base58Type.SECRET_KEY] = new byte[] { (128) };
+            network.base58Prefixes[(int)Base58Type.ENCRYPTED_SECRET_KEY_NO_EC] = new byte[] { 0x01, 0x42 };
+            network.base58Prefixes[(int)Base58Type.ENCRYPTED_SECRET_KEY_EC] = new byte[] { 0x01, 0x43 };
+            network.base58Prefixes[(int)Base58Type.EXT_PUBLIC_KEY] = new byte[] { (0x04), (0x88), (0xB2), (0x1E) };
+            network.base58Prefixes[(int)Base58Type.EXT_SECRET_KEY] = new byte[] { (0x04), (0x88), (0xAD), (0xE4) };
+            network.base58Prefixes[(int)Base58Type.PASSPHRASE_CODE] = new byte[] { 0x2C, 0xE9, 0xB3, 0xE1, 0xFF, 0x39, 0xE2 };
+            network.base58Prefixes[(int)Base58Type.CONFIRMATION_CODE] = new byte[] { 0x64, 0x3B, 0xF6, 0xA8, 0x9A };
+            network.base58Prefixes[(int)Base58Type.STEALTH_ADDRESS] = new byte[] { 0x2a };
+            network.base58Prefixes[(int)Base58Type.ASSET_ID] = new byte[] { 23 };
+            network.base58Prefixes[(int)Base58Type.COLORED_ADDRESS] = new byte[] { 0x13 };
+
+            var encoder = new Bech32Encoder("bc");
+            network.bech32Encoders[(int)Bech32Type.WITNESS_PUBKEY_ADDRESS] = encoder;
+            network.bech32Encoders[(int)Bech32Type.WITNESS_SCRIPT_ADDRESS] = encoder;
+
+            // Convert the pnSeeds array into usable address objects.
+            string[] pnSeed = new[] { "80.83.47.152:18222", "80.83.47.152:18222", "80.83.47.152:18222" };
+
+            Random rand = new Random();
+            TimeSpan nOneWeek = TimeSpan.FromDays(7);
+            for (int i = 0; i < pnSeed.Length; i++)
+            {
+                // It'll only connect to one or two seed nodes because once it connects,
+                // it'll get a pile of addresses with newer timestamps.                
+                NetworkAddress addr = new NetworkAddress();
+                // Seed nodes are given a random 'last seen time' of between one and two
+                // weeks ago.
+                addr.Time = DateTime.UtcNow - (TimeSpan.FromSeconds(rand.NextDouble() * nOneWeek.TotalSeconds)) - nOneWeek;
+                addr.Endpoint = Utils.ParseIpEndpoint(pnSeed[i], network.DefaultPort);
+                network.fixedSeeds.Add(addr);
+            }
+            network.MinTxFee = 1000;
+            network.FallbackFee = 20000;
+            network.MinRelayTxFee = 1000;
+
+            NetworksContainer.TryAdd(network.Name.ToLowerInvariant(), network);
+
+            return network;
+        }
+
+
         private static Block CreateGenesisBlock(uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
         {
             string pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
@@ -519,6 +709,40 @@ namespace NBitcoin
         }
 
         private static Block CreateStratisGenesisBlock(string pszTimestamp, uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
+        {
+            Transaction txNew = new Transaction();
+            txNew.Version = 1;
+            txNew.Time = nTime;
+            txNew.AddInput(new TxIn()
+            {
+                ScriptSig = new Script(Op.GetPushOp(0), new Op()
+                {
+                    Code = (OpcodeType)0x1,
+                    PushData = new[] { (byte)42 }
+                }, Op.GetPushOp(Encoders.ASCII.DecodeData(pszTimestamp)))
+            });
+            txNew.AddOutput(new TxOut()
+            {
+                Value = genesisReward,
+            });
+            Block genesis = new Block();
+            genesis.Header.BlockTime = Utils.UnixTimeToDateTime(nTime);
+            genesis.Header.Bits = nBits;
+            genesis.Header.Nonce = nNonce;
+            genesis.Header.Version = nVersion;
+            genesis.Transactions.Add(txNew);
+            genesis.Header.HashPrevBlock = uint256.Zero;
+            genesis.UpdateMerkleRoot();
+            return genesis;
+        }
+
+        private static Block CreateBatzGenesisBlock(uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
+        {
+            string pszTimestamp = "https://www.letemps.ch/economie/2017/12/13/qoqach-offre-bitcoins-moitie-prix";
+            return CreateBatzGenesisBlock(pszTimestamp, nTime, nNonce, nBits, nVersion, genesisReward);
+        }
+
+        private static Block CreateBatzGenesisBlock(string pszTimestamp, uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
         {
             Transaction txNew = new Transaction();
             txNew.Version = 1;
